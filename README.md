@@ -42,7 +42,21 @@ python clip.py https://example.com/article
 python clip.py https://example.com/article tech
 ```
 
-### From an AI agent
+### With Claude Code
+
+Claude Code has a Bash tool. Once Distill is installed, Claude can call it mid-conversation — no framework, no setup, just a shell command:
+
+```
+You: "Research this page for me: https://example.com/article"
+
+Claude runs: python /path/to/clip.py https://example.com/article research
+Claude reads: the saved Markdown file
+Claude answers: based on clean, extracted content
+```
+
+If a page returns 403 or a Cloudflare block, Claude falls back to Distill automatically. The content comes back as readable Markdown instead of a wall of HTML. Works in any Claude Code session — interactive, cron-based, or agentic.
+
+### From any AI agent
 
 ```python
 import subprocess, json
@@ -53,7 +67,7 @@ result = json.loads(
 # result = {"file": "clippings/tech/2026-03-26-title.md", "title": "...", "path": "..."}
 ```
 
-The agent can then read the saved Markdown file, or you can capture the extracted content inline and pass it directly to the model.
+The agent can read the saved Markdown file, or capture the content inline and pass it directly to the model. Works with any LLM that can call shell commands — Claude, GPT-4, Gemini, local models.
 
 ### Output format
 
