@@ -1,23 +1,25 @@
 # obsidian-server-clipper
 
-A headless web clipper for [Obsidian](https://obsidian.md/) that runs on a server — no browser extension required.
+**Give your AI agents clean, readable web content.**
 
-Designed for use with AI agents (Claude Code, custom agents, cron jobs) that need to save web pages to an Obsidian vault from a remote machine.
+Raw HTML is noisy — navigation bars, cookie banners, footers, ads, and a thousand lines of boilerplate for every paragraph of actual content. Feeding that to an LLM wastes tokens and buries the signal.
+
+This tool converts any URL into clean, structured Markdown that agents can actually read. It bypasses Cloudflare and bot detection, strips boilerplate, and extracts the content that matters. Obsidian integration is included — save clips directly to your vault — but the core capability works with or without Obsidian.
 
 ## What it does
 
-1. **Fetches** the URL using [Scrapling](https://github.com/D4Vinci/Scrapling) — a headless browser that bypasses Cloudflare and other bot detection
-2. **Extracts** the main article content using [readability-lxml](https://github.com/buriy/python-readability) (the same extraction engine used by Obsidian's own web clipper)
-3. **Converts** to clean Markdown using [markdownify](https://github.com/matthewwithanm/python-markdownify), with [trafilatura](https://trafilatura.readthedocs.io/) as fallback
-4. **Saves** to your Obsidian vault with YAML frontmatter (title, source URL, date, topic)
+1. **Fetches** the URL using [Scrapling](https://github.com/D4Vinci/Scrapling) — a stealth headless browser that bypasses Cloudflare and other bot-detection systems that block standard HTTP requests
+2. **Extracts** the main content using [readability-lxml](https://github.com/buriy/python-readability), the same engine behind Obsidian's own web clipper and Firefox Reader Mode
+3. **Converts** to clean Markdown using [markdownify](https://github.com/matthewwithanm/python-markdownify), with [trafilatura](https://trafilatura.readthedocs.io/) as fallback for complex pages
+4. **Saves** to your Obsidian vault with YAML frontmatter (title, source URL, date, topic) — or use the JSON output directly in your pipeline
 
-## Why server-side?
+## Who it's for
 
-Most Obsidian clippers are browser extensions. This one runs headlessly on a server or local machine via Python — useful when:
+**AI agent builders.** If you're building agents that research the web, you don't want your model wading through raw HTML. Run this as a preprocessing step and feed agents clean markdown instead. Works with Claude Code, LangChain, CrewAI, custom agents — anything that can call a subprocess.
 
-- You want an AI agent to clip pages during research
-- You're running automations on a remote server
-- You need to bypass bot detection (Cloudflare, etc.) that blocks standard `requests`
+**Obsidian power users.** Run it on a server or cron job. Clip pages to your vault from anywhere, without a browser open.
+
+**Python developers.** Use it as a library or subprocess for any pipeline that needs reliable web content extraction.
 
 ## Installation
 
@@ -25,39 +27,37 @@ Most Obsidian clippers are browser extensions. This one runs headlessly on a ser
 git clone https://github.com/jcenters/obsidian-server-clipper
 cd obsidian-server-clipper
 pip install -r requirements.txt
-```
-
-Scrapling requires Playwright browsers on first run:
-
-```bash
 playwright install chromium
 ```
 
 ## Usage
 
+### Command line
+
 ```bash
-# Basic usage — saves to $OBSIDIAN_CLIPPINGS/research/
+# Save to $OBSIDIAN_CLIPPINGS/research/
 python clip.py https://example.com/article
 
-# With topic — saves to $OBSIDIAN_CLIPPINGS/tech/
+# Save to $OBSIDIAN_CLIPPINGS/tech/
 python clip.py https://example.com/article tech
 ```
 
-### Environment variables
+### From an AI agent
 
-| Variable | Default | Description |
-|---|---|---|
-| `OBSIDIAN_VAULT` | `~/Documents/Obsidian` | Path to your Obsidian vault |
-| `OBSIDIAN_CLIPPINGS` | `$OBSIDIAN_VAULT/clippings` | Path to clippings folder |
+```python
+import subprocess, json
 
-```bash
-export OBSIDIAN_VAULT=~/workspace
-python clip.py https://example.com/article research
+result = json.loads(
+    subprocess.check_output(["python", "clip.py", url, topic])
+)
+# result = {"file": "clippings/tech/2026-03-26-title.md", "title": "...", "path": "..."}
 ```
 
-### Output
+The agent can then read the saved Markdown file, or you can capture the extracted content inline and pass it directly to the model.
 
-Returns JSON to stdout:
+### Output format
+
+JSON to stdout:
 
 ```json
 {
@@ -69,7 +69,7 @@ Returns JSON to stdout:
 }
 ```
 
-### Saved file format
+Saved file:
 
 ```markdown
 ---
@@ -79,29 +79,39 @@ clipped: 2026-03-26
 topic: research
 ---
 
-[Article content as clean Markdown...]
+[Clean article content as Markdown — no nav, no ads, no boilerplate]
 ```
 
-## Use with AI agents
+## Configuration
 
-```python
-import subprocess, json
+| Variable | Default | Description |
+|---|---|---|
+| `OBSIDIAN_VAULT` | `~/Documents/Obsidian` | Path to your Obsidian vault |
+| `OBSIDIAN_CLIPPINGS` | `$OBSIDIAN_VAULT/clippings` | Path to clippings folder |
 
-result = json.loads(
-    subprocess.check_output(["python", "clip.py", url, topic])
-)
-print(f"Clipped: {result['title']}")
-print(f"Saved to: {result['file']}")
+```bash
+export OBSIDIAN_VAULT=~/my-vault
+python clip.py https://example.com/article research
 ```
+
+## What it handles that other tools don't
+
+**Cloudflare and bot detection.** Standard `requests` or `urllib` get blocked by most modern sites. Scrapling runs a real headless browser with stealth headers, solving this at the fetch layer.
+
+**Boilerplate removal.** Readability extracts the main content and discards everything else — the same algorithm Firefox uses for Reader Mode. The Markdown you get is what a human would copy-paste, not the full page dump.
+
+**Nested lists and structure.** Unlike simpler extractors, the readability + markdownify pipeline preserves nested lists, blockquotes, code blocks, and heading hierarchy.
+
+**Fallback resilience.** If readability can't identify a main content block, trafilatura takes over — a battle-tested extraction library used by HuggingFace, IBM, and Microsoft Research.
 
 ## Credits
 
-This tool is built on top of excellent open-source work:
+Built on top of excellent open-source work:
 
-- **[Scrapling](https://github.com/D4Vinci/Scrapling)** by D4Vinci — headless browser fetching with bot-detection bypass. BSD 3-Clause License.
-- **[readability-lxml](https://github.com/buriy/python-readability)** by Yuri Baburov (buriy) — Python port of Mozilla's Readability.js for main content extraction. Apache License 2.0.
+- **[Scrapling](https://github.com/D4Vinci/Scrapling)** by D4Vinci — stealth headless fetching. BSD 3-Clause License.
+- **[readability-lxml](https://github.com/buriy/python-readability)** by Yuri Baburov — Python port of Mozilla Readability. Apache License 2.0.
 - **[markdownify](https://github.com/matthewwithanm/python-markdownify)** by Matthew Withanm — HTML to Markdown conversion. MIT License.
-- **[trafilatura](https://github.com/adbar/trafilatura)** by Adrien Barbaresi — web scraping and text extraction library, used as fallback extractor. Apache License 2.0.
+- **[trafilatura](https://github.com/adbar/trafilatura)** by Adrien Barbaresi — web scraping and text extraction. Apache License 2.0.
 
 ## License
 
