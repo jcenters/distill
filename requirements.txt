@@ -1,0 +1,4 @@
+scrapling>=0.4.0
+readability-lxml>=0.8.1
+markdownify>=0.11.6
+trafilatura>=2.0.0
