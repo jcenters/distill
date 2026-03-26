@@ -1,4 +1,4 @@
-# obsidian-server-clipper
+# Distill
 
 **Give your AI agents clean, readable web content.**
 
@@ -24,8 +24,8 @@ This tool converts any URL into clean, structured Markdown that agents can actua
 ## Installation
 
 ```bash
-git clone https://github.com/jcenters/obsidian-server-clipper
-cd obsidian-server-clipper
+git clone https://github.com/jcenters/distill
+cd distill
 pip install -r requirements.txt
 playwright install chromium
 ```
